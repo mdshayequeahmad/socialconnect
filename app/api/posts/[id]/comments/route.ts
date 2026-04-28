@@ -1,32 +1,33 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 
-// GET comments
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params
+
   const supabase = await createServerSupabase()
 
   const { data, error } = await supabase
     .from('comments')
     .select('*')
-    .eq('post_id', params.id)
+    .eq('post_id', id)
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error(error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data || [])
+  return NextResponse.json(data ?? [])
 }
 
-// POST comment
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params
+
   const supabase = await createServerSupabase()
 
   const {
@@ -37,9 +38,9 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { content } = await req.json()
+  const { content } = await request.json()
 
-  if (!content || !content.trim()) {
+  if (!content?.trim()) {
     return NextResponse.json({ error: 'Empty comment' }, { status: 400 })
   }
 
@@ -49,7 +50,7 @@ export async function POST(
     .from('comments')
     .insert({
       content,
-      post_id: params.id,
+      post_id: id,
       user_id: user.id,
       name,
     })
@@ -57,7 +58,6 @@ export async function POST(
     .single()
 
   if (error) {
-    console.error(error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
